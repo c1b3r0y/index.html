@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guardar, Editar y Mostrar Foto</title>
-    <link rel="stylesheet" href="styles.css"> <!-- Enlace al CSS -->
+    <title>Guardar, Editar, Eliminar y Cargar Fotos</title>
 </head>
 <body>
     <h1>Guardar Nombre, Descripción y Foto</h1>
@@ -23,13 +22,13 @@
 
     <h2>Información Guardada</h2>
     <div id="savedData">
-        <!-- Aquí se mostrarán los datos guardados -->
+        <!-- Aquí se mostrarán los datos ingresados y guardados -->
     </div>
 
     <script type="module">
         // Importar Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+        import { getDatabase, ref, push, set, update, remove, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
         import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
 
         // Configuración de Firebase
@@ -39,7 +38,8 @@
             projectId: "inventario-2be27",
             storageBucket: "inventario-2be27.appspot.com",
             messagingSenderId: "138347129495",
-            appId: "1:138347129495:web:c31aab61624d1a68bcd7d2"
+            appId: "1:138347129495:web:c31aab61624d1a68bcd7d2",
+            measurementId: "G-DL44WCPP4L"
         };
 
         // Inicializar Firebase
@@ -49,22 +49,23 @@
 
         const savedDataDiv = document.getElementById('savedData');
 
-        // Función para agregar datos al DOM
+        // Función para agregar datos al DOM con botones de editar y eliminar
         const addDataToSection = (id, name, description, photoURL) => {
             const div = document.createElement('div');
-            div.className = 'entry';
             div.id = id;
+            div.style.border = "1px solid #ddd";
+            div.style.padding = "10px";
+            div.style.marginBottom = "10px";
 
-            let photoHtml = '';
+            let photoHtml = "";
             if (photoURL) {
-                photoHtml = `<img src="${photoURL}" alt="Foto de ${name}" class="entry-photo">`;
+                photoHtml = `<br><img src="${photoURL}" alt="Foto de ${name}" width="200" style="margin-top:10px;">`;
             }
 
             div.innerHTML = `
-                <h3 class="entry-title">${name}</h3>
-                <p class="entry-description">${description}</p>
+                <strong>${name}</strong>: ${description}
                 ${photoHtml}
-                <div class="entry-buttons">
+                <div style="margin-top:10px;">
                     <button onclick="editEntry('${id}', '${name}', '${description}')">Editar</button>
                     <button onclick="deleteEntry('${id}')">Eliminar</button>
                 </div>
@@ -72,7 +73,7 @@
             savedDataDiv.appendChild(div);
         };
 
-        // Cargar datos al abrir la página
+        // Cargar todos los datos al abrir la página
         const dbRef = ref(database, 'entries');
         onValue(dbRef, (snapshot) => {
             savedDataDiv.innerHTML = ""; // Limpia los datos previos
@@ -95,24 +96,18 @@
 
             let photoURL = null;
             if (photo) {
-                try {
-                    const storagePath = `photos/${Date.now()}_${photo.name}`;
-                    const photoRef = storageRef(storage, storagePath);
-                    const snapshot = await uploadBytes(photoRef, photo);
-                    photoURL = await getDownloadURL(snapshot.ref);
-                } catch (error) {
-                    console.error("Error al cargar la foto:", error);
-                    alert("Hubo un problema al cargar la foto.");
-                    return;
-                }
+                const storagePath = `photos/${Date.now()}_${photo.name}`;
+                const photoRef = storageRef(storage, storagePath);
+                const snapshot = await uploadBytes(photoRef, photo);
+                photoURL = await getDownloadURL(snapshot.ref);
             }
 
             const newEntryRef = push(dbRef);
 
             set(newEntryRef, {
-                name,
-                description,
-                photoURL,
+                name: name,
+                description: description,
+                photoURL: photoURL,
                 timestamp: new Date().toISOString()
             })
             .then(() => {
@@ -124,6 +119,35 @@
                 alert('Hubo un error al guardar los datos.');
             });
         });
+
+        // Función para editar datos
+        window.editEntry = (id, name, description) => {
+            const newName = prompt("Editar nombre:", name);
+            const newDescription = prompt("Editar descripción:", description);
+
+            if (newName && newDescription) {
+                const entryRef = ref(database, `entries/${id}`);
+                update(entryRef, {
+                    name: newName,
+                    description: newDescription
+                })
+                .then(() => alert('Datos actualizados correctamente'))
+                .catch((error) => console.error('Error al actualizar:', error));
+            }
+        };
+
+        // Función para eliminar datos
+        window.deleteEntry = (id) => {
+            if (confirm("¿Estás seguro de que deseas eliminar esta entrada?")) {
+                const entryRef = ref(database, `entries/${id}`);
+                remove(entryRef)
+                .then(() => {
+                    document.getElementById(id).remove();
+                    alert('Datos eliminados correctamente');
+                })
+                .catch((error) => console.error('Error al eliminar:', error));
+            }
+        };
     </script>
 </body>
 </html>
