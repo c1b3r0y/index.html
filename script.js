@@ -26,8 +26,6 @@ const photoInput = document.getElementById('photo');
 const previewDiv = document.getElementById('preview');
 const previewImage = document.getElementById('previewImage');
 const savedDataDiv = document.getElementById('savedData');
-const partidasDiv = document.getElementById('partidas');
-const addPartidaButton = document.getElementById('addPartida');
 
 // Mostrar vista previa de la imagen seleccionada
 photoInput.addEventListener('change', () => {
@@ -35,10 +33,10 @@ photoInput.addEventListener('change', () => {
     if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            previewImage.src = e.target.result;
-            previewDiv.style.display = 'block';
+            previewImage.src = e.target.result; // Mostrar la imagen seleccionada
+            previewDiv.style.display = 'block'; // Mostrar la sección de vista previa
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(file); // Leer el archivo como DataURL
     } else {
         previewImage.src = '';
         previewDiv.style.display = 'none';
@@ -47,7 +45,7 @@ photoInput.addEventListener('change', () => {
 
 // Subir la imagen a ImgBB
 async function uploadToImgBB(imageFile) {
-    if (!imageFile) return null;
+    if (!imageFile) return null; // Si no hay imagen, retorna null
 
     const formData = new FormData();
     formData.append('image', imageFile);
@@ -62,7 +60,7 @@ async function uploadToImgBB(imageFile) {
     }
 
     const data = await response.json();
-    return data.data.url;
+    return data.data.url; // Retorna la URL pública de la imagen
 }
 
 // Manejo del formulario
@@ -71,7 +69,7 @@ form.addEventListener('submit', async (e) => {
 
     const name = document.getElementById('name').value.trim();
     const description = document.getElementById('description').value.trim();
-    const photo = photoInput.files[0];
+    const photo = photoInput.files[0]; // Obtén la imagen cargada
 
     if (!name || !description) {
         alert('Por favor, completa todos los campos.');
@@ -82,14 +80,17 @@ form.addEventListener('submit', async (e) => {
 
     try {
         if (photo) {
+            console.log('Subiendo la imagen a ImgBB...');
             photoURL = await uploadToImgBB(photo);
+            console.log('Imagen subida a ImgBB. URL:', photoURL);
         }
     } catch (error) {
         console.error('Error al subir la imagen a ImgBB:', error);
-        alert('Hubo un problema al subir la imagen.');
+        alert('Hubo un problema al subir la imagen. Guardaremos el comentario sin la imagen.');
     }
 
     try {
+        console.log('Guardando datos en Firebase...');
         const newEntryRef = push(ref(database, 'entries'));
         await set(newEntryRef, {
             name,
@@ -104,15 +105,16 @@ form.addEventListener('submit', async (e) => {
         previewDiv.style.display = 'none';
     } catch (error) {
         console.error('Error al guardar el comentario en Firebase:', error);
+        alert('Hubo un problema al guardar el comentario.');
     }
 });
 
 // Cargar todos los comentarios
 onValue(ref(database, 'entries'), (snapshot) => {
-    savedDataDiv.innerHTML = '';
+    savedDataDiv.innerHTML = ""; // Limpia los datos previos
     snapshot.forEach((childSnapshot) => {
         const data = childSnapshot.val();
-        const id = childSnapshot.key;
+        const id = childSnapshot.key; // Obtiene el ID único del comentario
         const div = document.createElement('div');
         div.style.border = '1px solid #ddd';
         div.style.padding = '10px';
@@ -120,7 +122,7 @@ onValue(ref(database, 'entries'), (snapshot) => {
 
         let photoHtml = '';
         if (data.photoURL) {
-            photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px;">`;
+            photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
         }
 
         div.innerHTML = `
@@ -135,35 +137,28 @@ onValue(ref(database, 'entries'), (snapshot) => {
     });
 });
 
-// Crear nueva partida
-addPartidaButton.addEventListener('click', () => {
-    const newPartidaRef = push(ref(database, 'partidas'));
-    set(newPartidaRef, { name: 'Nueva Partida', personajes: {} });
-});
+// Función para editar un comentario
+window.editComment = (id, currentName, currentDescription) => {
+    const newName = prompt("Editar nombre:", currentName);
+    const newDescription = prompt("Editar descripción:", currentDescription);
 
-// Crear partida visualmente
-function createPartida(id, name = 'Nueva Partida') {
-    const partidaDiv = document.createElement('div');
-    partidaDiv.id = `partida-${id}`;
-    partidaDiv.style.border = '1px solid #ddd';
-    partidaDiv.style.padding = '10px';
+    if (newName && newDescription) {
+        const entryRef = ref(database, `entries/${id}`);
+        update(entryRef, {
+            name: newName,
+            description: newDescription
+        })
+            .then(() => alert('Comentario actualizado correctamente'))
+            .catch((error) => console.error('Error al actualizar el comentario:', error));
+    }
+};
 
-    partidaDiv.innerHTML = `
-        <h2 contenteditable="true" onblur="updatePartidaName('${id}', this.innerText)">${name}</h2>
-        <button onclick="addPersonaje('${id}')">Agregar Personaje</button>
-        <div class="personajes" id="personajes-${id}"></div>
-    `;
-
-    partidasDiv.appendChild(partidaDiv);
-}
-
-// Cargar partidas y personajes
-onValue(ref(database, 'partidas'), (snapshot) => {
-    partidasDiv.innerHTML = '';
-    snapshot.forEach((childSnapshot) => {
-        const partida = childSnapshot.val();
-        const partidaId = childSnapshot.key;
-
-        createPartida(partidaId, partida.name);
-    });
-});
+// Función para eliminar un comentario
+window.deleteComment = (id) => {
+    if (confirm("¿Estás seguro de que deseas eliminar este comentario?")) {
+        const entryRef = ref(database, `entries/${id}`);
+        remove(entryRef)
+            .then(() => alert('Comentario eliminado correctamente'))
+            .catch((error) => console.error('Error al eliminar el comentario:', error));
+    }
+};
