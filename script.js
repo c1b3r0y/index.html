@@ -17,6 +17,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
+// API Key de ImgBB
+const imgbbApiKey = 'e7186e33106d5b82ebcc518e2bf11103';
+
 // Elementos del DOM
 const form = document.getElementById('dataForm');
 const photoInput = document.getElementById('photo');
@@ -40,27 +43,59 @@ photoInput.addEventListener('change', () => {
     }
 });
 
+// Subir la imagen a ImgBB
+async function uploadToImgBB(imageFile) {
+    if (!imageFile) return null; // Si no hay imagen, retorna null
+
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbApiKey}`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al subir la imagen a ImgBB');
+    }
+
+    const data = await response.json();
+    return data.data.url; // Retorna la URL pública de la imagen
+}
+
 // Manejo del formulario
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const name = document.getElementById('name').value.trim();
     const description = document.getElementById('description').value.trim();
-
-    // Obtenemos la URL de la vista previa (si se cargó una imagen)
-    const photoPreviewURL = previewImage.src;
+    const photo = photoInput.files[0]; // Obtén la imagen cargada
 
     if (!name || !description) {
         alert('Por favor, completa todos los campos.');
         return;
     }
 
+    let photoURL = null;
+
     try {
+        if (photo) {
+            console.log('Subiendo la imagen a ImgBB...');
+            photoURL = await uploadToImgBB(photo);
+            console.log('Imagen subida a ImgBB. URL:', photoURL);
+        }
+    } catch (error) {
+        console.error('Error al subir la imagen a ImgBB:', error);
+        alert('Hubo un problema al subir la imagen. Guardaremos el comentario sin la imagen.');
+    }
+
+    try {
+        console.log('Guardando datos en Firebase...');
         const newEntryRef = push(ref(database, 'entries'));
         await set(newEntryRef, {
             name,
             description,
-            photoURL: photoPreviewURL || null, // Guardamos la URL de la imagen, o null si no hay imagen
+            photoURL,
             timestamp: new Date().toISOString()
         });
 
@@ -69,7 +104,7 @@ form.addEventListener('submit', async (e) => {
         previewImage.src = '';
         previewDiv.style.display = 'none';
     } catch (error) {
-        console.error('Error al guardar el comentario:', error);
+        console.error('Error al guardar el comentario en Firebase:', error);
         alert('Hubo un problema al guardar el comentario.');
     }
 });
