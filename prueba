@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guardar y Mostrar Información</title>
+</head>
+<body>
+    <h1>Guardar Nombre y Descripción</h1>
+    <form id="dataForm">
+        <label for="name">Nombre:</label>
+        <input type="text" id="name" required>
+        <br><br>
+        <label for="description">Descripción:</label>
+        <textarea id="description" rows="4" cols="50" required></textarea>
+        <br><br>
+        <button type="submit">Guardar</button>
+    </form>
+
+    <h2>Información Guardada</h2>
+    <div id="savedData">
+        <!-- Aquí se mostrarán los datos ingresados y guardados -->
+    </div>
+
+    <!-- Incluye la configuración de Firebase -->
+    <script type="module">
+        // Importar Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getDatabase, ref, push, set, onChildAdded } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCAT6ZJsrI8tlyiDc1dEBSiezdK_JuEBmg",
+            authDomain: "inventario-2be27.firebaseapp.com",
+            projectId: "inventario-2be27",
+            storageBucket: "inventario-2be27.firebasestorage.app",
+            messagingSenderId: "138347129495",
+            appId: "1:138347129495:web:c31aab61624d1a68bcd7d2",
+            measurementId: "G-DL44WCPP4L"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        const savedDataDiv = document.getElementById('savedData');
+
+        // Función para agregar datos al DOM
+        const addDataToSection = (name, description) => {
+            const div = document.createElement('div');
+            div.innerHTML = `<strong>${name}</strong>: ${description}`;
+            savedDataDiv.appendChild(div);
+        };
+
+        // Escuchar nuevos datos en Firebase
+        const dbRef = ref(database, 'entries');
+        onChildAdded(dbRef, (snapshot) => {
+            const data = snapshot.val();
+            addDataToSection(data.name, data.description);
+        });
+
+        // Manejo del formulario
+        const form = document.getElementById('dataForm');
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('name').value;
+            const description = document.getElementById('description').value;
+
+            if (name && description) {
+                const newEntryRef = push(dbRef);
+
+                set(newEntryRef, {
+                    name: name,
+                    description: description,
+                    timestamp: new Date().toISOString()
+                })
+                .then(() => {
+                    alert('Datos guardados correctamente');
+                    form.reset();
+                })
+                .catch((error) => {
+                    console.error('Error al guardar:', error);
+                    alert('Hubo un error al guardar los datos.');
+                });
+            }
+        });
+    </script>
+</body>
+</html>
