@@ -30,10 +30,10 @@ photoInput.addEventListener('change', () => {
     if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            previewImage.src = e.target.result;
-            previewDiv.style.display = 'block';
+            previewImage.src = e.target.result; // Mostrar la imagen seleccionada
+            previewDiv.style.display = 'block'; // Mostrar la sección de vista previa
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(file); // Leer el archivo como DataURL
     } else {
         previewImage.src = '';
         previewDiv.style.display = 'none';
@@ -47,6 +47,9 @@ form.addEventListener('submit', async (e) => {
     const name = document.getElementById('name').value.trim();
     const description = document.getElementById('description').value.trim();
 
+    // Obtenemos la URL de la vista previa (si se cargó una imagen)
+    const photoPreviewURL = previewImage.src;
+
     if (!name || !description) {
         alert('Por favor, completa todos los campos.');
         return;
@@ -57,6 +60,7 @@ form.addEventListener('submit', async (e) => {
         await set(newEntryRef, {
             name,
             description,
+            photoURL: photoPreviewURL || null, // Guardamos la URL de la imagen, o null si no hay imagen
             timestamp: new Date().toISOString()
         });
 
@@ -81,9 +85,15 @@ onValue(ref(database, 'entries'), (snapshot) => {
         div.style.padding = '10px';
         div.style.marginBottom = '10px';
 
+        let photoHtml = '';
+        if (data.photoURL) {
+            photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
+        }
+
         div.innerHTML = `
             <h3>${data.name}</h3>
             <p>${data.description}</p>
+            ${photoHtml}
             <button onclick="editComment('${id}', '${data.name}', '${data.description}')">Editar</button>
             <button onclick="deleteComment('${id}')">Eliminar</button>
         `;
