@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guardar, Editar, Eliminar y Cargar Fotos</title>
+    <title>Guardar, Editar y Eliminar</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Enlace al CSS externo -->
 </head>
 <body>
     <h1>Guardar Nombre, Descripción y Foto</h1>
@@ -28,7 +29,7 @@
     <script type="module">
         // Importar Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getDatabase, ref, push, set, update, remove, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+        import { getDatabase, ref, push, set, remove, update, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
         import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
 
         // Configuración de Firebase
@@ -49,21 +50,25 @@
 
         const savedDataDiv = document.getElementById('savedData');
 
-        // Función para agregar datos al DOM con botones de editar y eliminar
+        // Función para agregar datos al DOM con diseño
         const addDataToSection = (id, name, description, photoURL) => {
             const div = document.createElement('div');
+            div.className = 'entry';
             div.id = id;
 
             let photoHtml = "";
             if (photoURL) {
-                photoHtml = `<br><img src="${photoURL}" alt="Foto" width="100">`;
+                photoHtml = `<img src="${photoURL}" alt="Foto de ${name}" class="entry-photo">`;
             }
 
             div.innerHTML = `
-                <strong>${name}</strong>: ${description}
+                <h3 class="entry-title">${name}</h3>
+                <p class="entry-description">${description}</p>
                 ${photoHtml}
-                <button onclick="editEntry('${id}', '${name}', '${description}')">Editar</button>
-                <button onclick="deleteEntry('${id}')">Eliminar</button>
+                <div class="entry-buttons">
+                    <button onclick="editEntry('${id}', '${name}', '${description}')">Editar</button>
+                    <button onclick="deleteEntry('${id}')">Eliminar</button>
+                </div>
             `;
             savedDataDiv.appendChild(div);
         };
