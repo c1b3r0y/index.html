@@ -96,3 +96,50 @@ function addDataToPage(name, description, photoURL) {
 
     savedDataDiv.appendChild(div);
 }
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById('name').value.trim();
+    const description = document.getElementById('description').value.trim();
+    const photo = photoInput.files[0];
+
+    if (!name || !description) {
+        alert('Por favor, completa el nombre y la descripción.');
+        return;
+    }
+
+    console.log("Formulario validado. Nombre:", name, "Descripción:", description);
+
+    let photoURL = null;
+
+    if (photo) {
+        try {
+            console.log("Subiendo la imagen a ImgBB...");
+            photoURL = await uploadToImgBB(photo);
+            console.log("Imagen subida. URL:", photoURL);
+        } catch (error) {
+            console.error("Error al subir la imagen:", error);
+            alert('Hubo un problema al subir la imagen.');
+            return;
+        }
+    }
+
+    try {
+        console.log("Guardando datos en Firebase...");
+        const newEntryRef = push(ref(database, 'entries'));
+        await set(newEntryRef, {
+            name,
+            description,
+            photoURL,
+            timestamp: new Date().toISOString()
+        });
+        console.log("Datos guardados en Firebase.");
+        alert('Datos guardados correctamente');
+        form.reset();
+        previewImage.src = '';
+        previewDiv.style.display = 'none';
+    } catch (error) {
+        console.error("Error al guardar los datos en Firebase:", error);
+        alert('Hubo un problema al guardar los datos.');
+    }
+});
