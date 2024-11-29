@@ -31,12 +31,12 @@ photoInput.addEventListener('change', () => {
     if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            previewImage.src = e.target.result;
-            previewDiv.style.display = 'block';
+            previewImage.src = e.target.result; // Mostrar la imagen seleccionada
+            previewDiv.style.display = 'block'; // Mostrar la sección de vista previa
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(file); // Leer el archivo como DataURL
     } else {
-        previewImage.src = '';
+        previewImage.src = ''; // Limpiar la vista previa si no hay archivo
         previewDiv.style.display = 'none';
     }
 });
@@ -45,36 +45,51 @@ photoInput.addEventListener('change', () => {
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const name = document.getElementById('name').value;
-    const description = document.getElementById('description').value;
+    const name = document.getElementById('name').value.trim();
+    const description = document.getElementById('description').value.trim();
     const photo = photoInput.files[0];
 
-    let photoURL = null;
+    if (!name || !description) {
+        alert("Por favor, completa el nombre y la descripción.");
+        return;
+    }
+
+    let photoURL = null; // Inicializar la URL de la foto
     if (photo) {
         try {
+            console.log("Intentando subir la foto...");
             const storagePath = `photos/${Date.now()}_${photo.name}`;
             const photoRef = storageRef(storage, storagePath);
+
+            // Subir la foto a Firebase Storage
             const snapshot = await uploadBytes(photoRef, photo);
             photoURL = await getDownloadURL(snapshot.ref);
+            console.log("Foto subida correctamente. URL:", photoURL);
         } catch (error) {
             console.error("Error al subir la foto:", error);
-            alert("Hubo un error al subir la foto.");
+            alert("Hubo un problema al subir la foto.");
             return;
         }
     }
 
-    const newEntryRef = push(ref(database, 'entries'));
-    await set(newEntryRef, {
-        name,
-        description,
-        photoURL,
-        timestamp: new Date().toISOString()
-    });
+    try {
+        // Guardar los datos en Realtime Database
+        const newEntryRef = push(ref(database, 'entries'));
+        await set(newEntryRef, {
+            name,
+            description,
+            photoURL,
+            timestamp: new Date().toISOString()
+        });
 
-    alert('Datos guardados correctamente');
-    form.reset();
-    previewImage.src = '';
-    previewDiv.style.display = 'none';
+        alert('Datos guardados correctamente');
+        form.reset();
+        previewImage.src = '';
+        previewDiv.style.display = 'none';
+    } catch (error) {
+        console.error("Error al guardar los datos en la base de datos:", error);
+        alert("Hubo un problema al guardar los datos.");
+    }
 });
 
 // Cargar todos los datos al abrir la página
