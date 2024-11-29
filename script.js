@@ -51,10 +51,16 @@ form.addEventListener('submit', async (e) => {
 
     let photoURL = null;
     if (photo) {
-        const storagePath = `photos/${Date.now()}_${photo.name}`;
-        const photoRef = storageRef(storage, storagePath);
-        const snapshot = await uploadBytes(photoRef, photo);
-        photoURL = await getDownloadURL(snapshot.ref);
+        try {
+            const storagePath = `photos/${Date.now()}_${photo.name}`;
+            const photoRef = storageRef(storage, storagePath);
+            const snapshot = await uploadBytes(photoRef, photo);
+            photoURL = await getDownloadURL(snapshot.ref);
+        } catch (error) {
+            console.error("Error al subir la foto:", error);
+            alert("Hubo un error al subir la foto.");
+            return;
+        }
     }
 
     const newEntryRef = push(ref(database, 'entries'));
@@ -81,10 +87,17 @@ onValue(ref(database, 'entries'), (snapshot) => {
         div.style.padding = "10px";
         div.style.marginBottom = "10px";
 
+        let photoHtml = '';
+        if (data.photoURL) {
+            photoHtml = `<img src="${data.photoURL}" alt="Foto de ${data.name}" width="200" style="margin-top:10px;">`;
+        } else {
+            photoHtml = `<p style="color: red;">No se subió ninguna foto.</p>`;
+        }
+
         div.innerHTML = `
             <h3>${data.name}</h3>
             <p>${data.description}</p>
-            <img src="${data.photoURL}" alt="Foto de ${data.name}" width="200" style="margin-top:10px;">
+            ${photoHtml}
         `;
         savedDataDiv.appendChild(div);
     });
