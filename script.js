@@ -17,148 +17,123 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// API Key de ImgBB
-const imgbbApiKey = 'e7186e33106d5b82ebcc518e2bf11103';
-
 // Elementos del DOM
-const form = document.getElementById('dataForm');
-const photoInput = document.getElementById('photo');
-const previewDiv = document.getElementById('preview');
-const previewImage = document.getElementById('previewImage');
-const savedDataDiv = document.getElementById('savedData');
+const partidasDiv = document.getElementById('partidas');
+const addPartidaButton = document.getElementById('addPartida');
 
-// Mostrar vista previa de la imagen seleccionada
-photoInput.addEventListener('change', () => {
-    const file = photoInput.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            previewImage.src = e.target.result; // Mostrar la imagen seleccionada
-            previewDiv.style.display = 'block'; // Mostrar la sección de vista previa
-        };
-        reader.readAsDataURL(file); // Leer el archivo como DataURL
-    } else {
-        previewImage.src = '';
-        previewDiv.style.display = 'none';
-    }
-});
+// Función para crear una nueva partida
+function createPartida(id, name = 'Nueva Partida') {
+    const partidaDiv = document.createElement('div');
+    partidaDiv.id = `partida-${id}`;
+    partidaDiv.style.border = '1px solid #ddd';
+    partidaDiv.style.padding = '10px';
+    partidaDiv.style.marginBottom = '10px';
 
-// Subir la imagen a ImgBB
-async function uploadToImgBB(imageFile) {
-    if (!imageFile) return null; // Si no hay imagen, retorna null
+    partidaDiv.innerHTML = `
+        <h2 contenteditable="true" onblur="updatePartidaName('${id}', this.innerText)">${name}</h2>
+        <button onclick="addPersonaje('${id}')">Agregar Personaje</button>
+        <div class="personajes" id="personajes-${id}"></div>
+    `;
 
-    const formData = new FormData();
-    formData.append('image', imageFile);
-
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbApiKey}`, {
-        method: 'POST',
-        body: formData,
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al subir la imagen a ImgBB');
-    }
-
-    const data = await response.json();
-    return data.data.url; // Retorna la URL pública de la imagen
+    partidasDiv.appendChild(partidaDiv);
 }
 
-// Manejo del formulario
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const name = document.getElementById('name').value.trim();
-    const description = document.getElementById('description').value.trim();
-    const photo = photoInput.files[0]; // Obtén la imagen cargada
-
-    if (!name || !description) {
-        alert('Por favor, completa todos los campos.');
-        return;
-    }
-
-    let photoURL = null;
-
-    try {
-        if (photo) {
-            console.log('Subiendo la imagen a ImgBB...');
-            photoURL = await uploadToImgBB(photo);
-            console.log('Imagen subida a ImgBB. URL:', photoURL);
-        }
-    } catch (error) {
-        console.error('Error al subir la imagen a ImgBB:', error);
-        alert('Hubo un problema al subir la imagen. Guardaremos el comentario sin la imagen.');
-    }
-
-    try {
-        console.log('Guardando datos en Firebase...');
-        const newEntryRef = push(ref(database, 'entries'));
-        await set(newEntryRef, {
-            name,
-            description,
-            photoURL,
-            timestamp: new Date().toISOString()
-        });
-
-        alert('Comentario guardado correctamente');
-        form.reset();
-        previewImage.src = '';
-        previewDiv.style.display = 'none';
-    } catch (error) {
-        console.error('Error al guardar el comentario en Firebase:', error);
-        alert('Hubo un problema al guardar el comentario.');
-    }
+// Agregar nueva partida al presionar el botón "+"
+addPartidaButton.addEventListener('click', () => {
+    const newPartidaRef = push(ref(database, 'partidas'));
+    set(newPartidaRef, { name: 'Nueva Partida', personajes: {} });
 });
 
-// Cargar todos los comentarios
-onValue(ref(database, 'entries'), (snapshot) => {
-    savedDataDiv.innerHTML = ""; // Limpia los datos previos
+// Cargar las partidas desde Firebase
+onValue(ref(database, 'partidas'), (snapshot) => {
+    partidasDiv.innerHTML = ''; // Limpia las partidas previas
     snapshot.forEach((childSnapshot) => {
-        const data = childSnapshot.val();
-        const id = childSnapshot.key; // Obtiene el ID único del comentario
-        const div = document.createElement('div');
-        div.style.border = '1px solid #ddd';
-        div.style.padding = '10px';
-        div.style.marginBottom = '10px';
+        const partidaData = childSnapshot.val();
+        const partidaId = childSnapshot.key;
+        createPartida(partidaId, partidaData.name);
 
-        let photoHtml = '';
-        if (data.photoURL) {
-            photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
+        const personajesDiv = document.getElementById(`personajes-${partidaId}`);
+        if (partidaData.personajes) {
+            for (const personajeId in partidaData.personajes) {
+                const personaje = partidaData.personajes[personajeId];
+                createPersonaje(partidaId, personajeId, personaje.name, personaje.description, personaje.photoURL);
+            }
         }
-
-        div.innerHTML = `
-            <h3>${data.name}</h3>
-            <p>${data.description}</p>
-            ${photoHtml}
-            <button onclick="editComment('${id}', '${data.name}', '${data.description}')">Editar</button>
-            <button onclick="deleteComment('${id}')">Eliminar</button>
-        `;
-
-        savedDataDiv.appendChild(div);
     });
 });
 
-// Función para editar un comentario
-window.editComment = (id, currentName, currentDescription) => {
-    const newName = prompt("Editar nombre:", currentName);
-    const newDescription = prompt("Editar descripción:", currentDescription);
+// Función para agregar un personaje
+window.addPersonaje = (partidaId) => {
+    const personajesDiv = document.getElementById(`personajes-${partidaId}`);
+    const personajeForm = document.createElement('form');
 
-    if (newName && newDescription) {
-        const entryRef = ref(database, `entries/${id}`);
-        update(entryRef, {
-            name: newName,
-            description: newDescription
-        })
-            .then(() => alert('Comentario actualizado correctamente'))
-            .catch((error) => console.error('Error al actualizar el comentario:', error));
-    }
+    personajeForm.innerHTML = `
+        <label>Nombre:</label>
+        <input type="text" required>
+        <label>Descripción:</label>
+        <textarea rows="2" required></textarea>
+        <label>Imagen:</label>
+        <input type="file" accept="image/png, image/jpeg">
+        <button type="submit">Guardar</button>
+    `;
+
+    personajeForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = personajeForm.querySelector('input[type="text"]').value.trim();
+        const description = personajeForm.querySelector('textarea').value.trim();
+        const photoFile = personajeForm.querySelector('input[type="file"]').files[0];
+        let photoURL = null;
+
+        if (photoFile) {
+            const formData = new FormData();
+            formData.append('image', photoFile);
+            const response = await fetch(`https://api.imgbb.com/1/upload?key=e7186e33106d5b82ebcc518e2bf11103`, {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await response.json();
+            photoURL = data.data.url;
+        }
+
+        const newPersonajeRef = push(ref(database, `partidas/${partidaId}/personajes`));
+        await set(newPersonajeRef, { name, description, photoURL });
+        personajeForm.reset();
+    });
+
+    personajesDiv.appendChild(personajeForm);
 };
 
-// Función para eliminar un comentario
-window.deleteComment = (id) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este comentario?")) {
-        const entryRef = ref(database, `entries/${id}`);
-        remove(entryRef)
-            .then(() => alert('Comentario eliminado correctamente'))
-            .catch((error) => console.error('Error al eliminar el comentario:', error));
+// Crear un personaje visualmente
+function createPersonaje(partidaId, personajeId, name, description, photoURL) {
+    const personajesDiv = document.getElementById(`personajes-${partidaId}`);
+    const personajeDiv = document.createElement('div');
+    personajeDiv.style.border = '1px solid #ccc';
+    personajeDiv.style.marginTop = '10px';
+    personajeDiv.style.padding = '10px';
+
+    let photoHtml = '';
+    if (photoURL) {
+        photoHtml = `<img src="${photoURL}" alt="${name}" style="max-width: 100px; margin-top: 10px;">`;
     }
+
+    personajeDiv.innerHTML = `
+        <h3>${name}</h3>
+        <p>${description}</p>
+        ${photoHtml}
+        <button onclick="deletePersonaje('${partidaId}', '${personajeId}')">Eliminar</button>
+    `;
+
+    personajesDiv.appendChild(personajeDiv);
+}
+
+// Función para eliminar un personaje
+window.deletePersonaje = (partidaId, personajeId) => {
+    const personajeRef = ref(database, `partidas/${partidaId}/personajes/${personajeId}`);
+    remove(personajeRef);
+};
+
+// Función para actualizar el nombre de la partida
+window.updatePartidaName = (id, newName) => {
+    const partidaRef = ref(database, `partidas/${id}`);
+    update(partidaRef, { name: newName });
 };
