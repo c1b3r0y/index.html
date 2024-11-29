@@ -1,5 +1,23 @@
-// Configuración de ImgBB
-const imgbbApiKey = 'TU_API_KEY'; // Reemplaza con tu API Key de ImgBB
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+// Configuración de Firebase
+const firebaseConfig = {
+    apiKey: "TU_API_KEY",
+    authDomain: "TU_AUTH_DOMAIN",
+    databaseURL: "TU_DATABASE_URL",
+    projectId: "TU_PROJECT_ID",
+    storageBucket: "TU_STORAGE_BUCKET",
+    messagingSenderId: "TU_MESSAGING_SENDER_ID",
+    appId: "TU_APP_ID"
+};
+
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+// API Key de ImgBB
+const imgbbApiKey = 'e7186e33106d5b82ebcc518e2bf11103';
 
 // Elementos del DOM
 const form = document.getElementById('dataForm');
@@ -72,60 +90,8 @@ form.addEventListener('submit', async (e) => {
         return;
     }
 
-    // Mostrar los datos guardados
-    addDataToPage(name, description, photoURL);
-
-    // Resetear el formulario
-    form.reset();
-    previewImage.src = '';
-    previewDiv.style.display = 'none';
-});
-
-// Mostrar los datos guardados en la página
-function addDataToPage(name, description, photoURL) {
-    const div = document.createElement('div');
-    div.style.border = '1px solid #ddd';
-    div.style.padding = '10px';
-    div.style.marginBottom = '10px';
-
-    div.innerHTML = `
-        <h3>${name}</h3>
-        <p>${description}</p>
-        <img src="${photoURL}" alt="Imagen de ${name}" style="max-width: 200px; margin-top: 10px;">
-    `;
-
-    savedDataDiv.appendChild(div);
-}
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const name = document.getElementById('name').value.trim();
-    const description = document.getElementById('description').value.trim();
-    const photo = photoInput.files[0];
-
-    if (!name || !description) {
-        alert('Por favor, completa el nombre y la descripción.');
-        return;
-    }
-
-    console.log("Formulario validado. Nombre:", name, "Descripción:", description);
-
-    let photoURL = null;
-
-    if (photo) {
-        try {
-            console.log("Subiendo la imagen a ImgBB...");
-            photoURL = await uploadToImgBB(photo);
-            console.log("Imagen subida. URL:", photoURL);
-        } catch (error) {
-            console.error("Error al subir la imagen:", error);
-            alert('Hubo un problema al subir la imagen.');
-            return;
-        }
-    }
-
     try {
-        console.log("Guardando datos en Firebase...");
+        // Guardar los datos en Firebase Realtime Database
         const newEntryRef = push(ref(database, 'entries'));
         await set(newEntryRef, {
             name,
@@ -133,13 +99,38 @@ form.addEventListener('submit', async (e) => {
             photoURL,
             timestamp: new Date().toISOString()
         });
-        console.log("Datos guardados en Firebase.");
+
         alert('Datos guardados correctamente');
         form.reset();
         previewImage.src = '';
         previewDiv.style.display = 'none';
     } catch (error) {
-        console.error("Error al guardar los datos en Firebase:", error);
+        console.error('Error al guardar los datos en Firebase:', error);
         alert('Hubo un problema al guardar los datos.');
     }
+});
+
+// Cargar todos los datos desde Firebase
+onValue(ref(database, 'entries'), (snapshot) => {
+    savedDataDiv.innerHTML = ""; // Limpia los datos previos
+    snapshot.forEach((childSnapshot) => {
+        const data = childSnapshot.val();
+        const div = document.createElement('div');
+        div.style.border = '1px solid #ddd';
+        div.style.padding = '10px';
+        div.style.marginBottom = '10px';
+
+        let photoHtml = '';
+        if (data.photoURL) {
+            photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
+        }
+
+        div.innerHTML = `
+            <h3>${data.name}</h3>
+            <p>${data.description}</p>
+            ${photoHtml}
+        `;
+
+        savedDataDiv.appendChild(div);
+    });
 });
