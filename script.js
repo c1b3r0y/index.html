@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { getDatabase, ref, push, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-// Configuración de Firebase (tu información)
+// Configuración de Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyCAT6ZJsrI8tlyiDc1dEBSiezdK_JuEBmg",
     authDomain: "inventario-2be27.firebaseapp.com",
@@ -17,9 +17,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// API Key de ImgBB
-const imgbbApiKey = 'e7186e33106d5b82ebcc518e2bf11103';
-
 // Elementos del DOM
 const form = document.getElementById('dataForm');
 const photoInput = document.getElementById('photo');
@@ -33,35 +30,15 @@ photoInput.addEventListener('change', () => {
     if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            previewImage.src = e.target.result; // Mostrar la imagen seleccionada
-            previewDiv.style.display = 'block'; // Mostrar la sección de vista previa
+            previewImage.src = e.target.result;
+            previewDiv.style.display = 'block';
         };
-        reader.readAsDataURL(file); // Leer el archivo como DataURL
+        reader.readAsDataURL(file);
     } else {
-        previewImage.src = ''; // Limpiar la vista previa si no hay archivo
+        previewImage.src = '';
         previewDiv.style.display = 'none';
     }
 });
-
-// Subir la imagen a ImgBB
-async function uploadToImgBB(imageFile) {
-    if (!imageFile) return null; // Si no hay imagen, retorna null
-
-    const formData = new FormData();
-    formData.append('image', imageFile);
-
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbApiKey}`, {
-        method: 'POST',
-        body: formData,
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al subir la imagen a ImgBB');
-    }
-
-    const data = await response.json();
-    return data.data.url; // Retorna la URL pública de la imagen
-}
 
 // Manejo del formulario
 form.addEventListener('submit', async (e) => {
@@ -69,33 +46,17 @@ form.addEventListener('submit', async (e) => {
 
     const name = document.getElementById('name').value.trim();
     const description = document.getElementById('description').value.trim();
-    const photo = photoInput.files[0];
 
     if (!name || !description) {
-        alert('Por favor, completa el nombre y la descripción.');
+        alert('Por favor, completa todos los campos.');
         return;
     }
 
-    let photoURL = null;
-
     try {
-        if (photo) {
-            console.log('Subiendo la imagen a ImgBB...');
-            photoURL = await uploadToImgBB(photo);
-            console.log('Imagen subida. URL:', photoURL);
-        }
-    } catch (error) {
-        console.error('Error al subir la imagen:', error);
-        alert('Hubo un problema al subir la imagen. Guardaremos el comentario sin la imagen.');
-    }
-
-    try {
-        console.log('Guardando datos en Firebase...');
         const newEntryRef = push(ref(database, 'entries'));
         await set(newEntryRef, {
             name,
             description,
-            photoURL,
             timestamp: new Date().toISOString()
         });
 
@@ -104,32 +65,55 @@ form.addEventListener('submit', async (e) => {
         previewImage.src = '';
         previewDiv.style.display = 'none';
     } catch (error) {
-        console.error('Error al guardar los datos en Firebase:', error);
+        console.error('Error al guardar el comentario:', error);
         alert('Hubo un problema al guardar el comentario.');
     }
 });
 
-// Cargar todos los comentarios desde Firebase
+// Cargar todos los comentarios
 onValue(ref(database, 'entries'), (snapshot) => {
-    savedDataDiv.innerHTML = ""; // Limpia los comentarios previos
+    savedDataDiv.innerHTML = ""; // Limpia los datos previos
     snapshot.forEach((childSnapshot) => {
         const data = childSnapshot.val();
+        const id = childSnapshot.key; // Obtiene el ID único del comentario
         const div = document.createElement('div');
         div.style.border = '1px solid #ddd';
         div.style.padding = '10px';
         div.style.marginBottom = '10px';
 
-        let photoHtml = '';
-        if (data.photoURL) {
-            photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
-        }
-
         div.innerHTML = `
             <h3>${data.name}</h3>
             <p>${data.description}</p>
-            ${photoHtml}
+            <button onclick="editComment('${id}', '${data.name}', '${data.description}')">Editar</button>
+            <button onclick="deleteComment('${id}')">Eliminar</button>
         `;
 
         savedDataDiv.appendChild(div);
     });
 });
+
+// Función para editar un comentario
+window.editComment = (id, currentName, currentDescription) => {
+    const newName = prompt("Editar nombre:", currentName);
+    const newDescription = prompt("Editar descripción:", currentDescription);
+
+    if (newName && newDescription) {
+        const entryRef = ref(database, `entries/${id}`);
+        update(entryRef, {
+            name: newName,
+            description: newDescription
+        })
+            .then(() => alert('Comentario actualizado correctamente'))
+            .catch((error) => console.error('Error al actualizar el comentario:', error));
+    }
+};
+
+// Función para eliminar un comentario
+window.deleteComment = (id) => {
+    if (confirm("¿Estás seguro de que deseas eliminar este comentario?")) {
+        const entryRef = ref(database, `entries/${id}`);
+        remove(entryRef)
+            .then(() => alert('Comentario eliminado correctamente'))
+            .catch((error) => console.error('Error al eliminar el comentario:', error));
+    }
+};
