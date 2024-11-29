@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subir Imágenes con ImgBB y Guardar en Firebase</title>
+    <title>Guardar Comentarios y Fotos</title>
 </head>
 <body>
-    <h1>Subir Imagen y Guardar Datos</h1>
+    <h1>Guardar Comentarios y Fotos</h1>
     <form id="dataForm">
         <label for="name">Nombre:</label>
         <input type="text" id="name" required>
@@ -14,8 +14,8 @@
         <label for="description">Descripción:</label>
         <textarea id="description" rows="4" cols="50" required></textarea>
         <br><br>
-        <label for="photo">Imagen:</label>
-        <input type="file" id="photo" accept="image/png, image/jpeg" required>
+        <label for="photo">Imagen (opcional):</label>
+        <input type="file" id="photo" accept="image/png, image/jpeg">
         <br><br>
         <div id="preview" style="display: none;">
             <p><strong>Vista previa:</strong></p>
@@ -25,7 +25,7 @@
         <button type="submit">Guardar</button>
     </form>
 
-    <h2>Datos Guardados</h2>
+    <h2>Comentarios Guardados</h2>
     <div id="savedData"></div>
 
     <script src="script.js" type="module"></script>
