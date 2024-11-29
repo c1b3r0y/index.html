@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subir Imágenes con ImgBB</title>
+    <title>Subir Imágenes con ImgBB y Guardar en Firebase</title>
 </head>
 <body>
     <h1>Subir Imagen y Guardar Datos</h1>
@@ -28,7 +28,24 @@
     <h2>Datos Guardados</h2>
     <div id="savedData"></div>
 
-    <script>
+    <script type="module">
+        // Configuración de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_AUTH_DOMAIN",
+            databaseURL: "TU_DATABASE_URL",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
         // API Key de ImgBB
         const imgbbApiKey = 'e7186e33106d5b82ebcc518e2bf11103';
 
@@ -103,30 +120,50 @@
                 return;
             }
 
-            // Mostrar los datos guardados
-            addDataToPage(name, description, photoURL);
+            try {
+                // Guardar los datos en Firebase Realtime Database
+                const newEntryRef = push(ref(database, 'entries'));
+                await set(newEntryRef, {
+                    name,
+                    description,
+                    photoURL,
+                    timestamp: new Date().toISOString()
+                });
 
-            // Resetear el formulario
-            form.reset();
-            previewImage.src = '';
-            previewDiv.style.display = 'none';
+                alert('Datos guardados correctamente');
+                form.reset();
+                previewImage.src = '';
+                previewDiv.style.display = 'none';
+            } catch (error) {
+                console.error('Error al guardar los datos en Firebase:', error);
+                alert('Hubo un problema al guardar los datos.');
+            }
         });
 
-        // Mostrar los datos guardados en la página
-        function addDataToPage(name, description, photoURL) {
-            const div = document.createElement('div');
-            div.style.border = '1px solid #ddd';
-            div.style.padding = '10px';
-            div.style.marginBottom = '10px';
+        // Cargar todos los datos desde Firebase
+        onValue(ref(database, 'entries'), (snapshot) => {
+            savedDataDiv.innerHTML = ""; // Limpia los datos previos
+            snapshot.forEach((childSnapshot) => {
+                const data = childSnapshot.val();
+                const div = document.createElement('div');
+                div.style.border = '1px solid #ddd';
+                div.style.padding = '10px';
+                div.style.marginBottom = '10px';
 
-            div.innerHTML = `
-                <h3>${name}</h3>
-                <p>${description}</p>
-                <img src="${photoURL}" alt="Imagen de ${name}" style="max-width: 200px; margin-top: 10px;">
-            `;
+                let photoHtml = '';
+                if (data.photoURL) {
+                    photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
+                }
 
-            savedDataDiv.appendChild(div);
-        }
+                div.innerHTML = `
+                    <h3>${data.name}</h3>
+                    <p>${data.description}</p>
+                    ${photoHtml}
+                `;
+
+                savedDataDiv.appendChild(div);
+            });
+        });
     </script>
 </body>
 </html>
