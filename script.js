@@ -1,15 +1,16 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-// Configuración de Firebase
+// Configuración de Firebase (tu información)
 const firebaseConfig = {
-    apiKey: "TU_API_KEY",
-    authDomain: "TU_AUTH_DOMAIN",
-    databaseURL: "TU_DATABASE_URL",
-    projectId: "TU_PROJECT_ID",
-    storageBucket: "TU_STORAGE_BUCKET",
-    messagingSenderId: "TU_MESSAGING_SENDER_ID",
-    appId: "TU_APP_ID"
+    apiKey: "AIzaSyCAT6ZJsrI8tlyiDc1dEBSiezdK_JuEBmg",
+    authDomain: "inventario-2be27.firebaseapp.com",
+    databaseURL: "https://inventario-2be27-default-rtdb.firebaseio.com",
+    projectId: "inventario-2be27",
+    storageBucket: "inventario-2be27.firebasestorage.app",
+    messagingSenderId: "138347129495",
+    appId: "1:138347129495:web:c31aab61624d1a68bcd7d2",
+    measurementId: "G-DL44WCPP4L"
 };
 
 // Inicializar Firebase
@@ -44,6 +45,8 @@ photoInput.addEventListener('change', () => {
 
 // Subir la imagen a ImgBB
 async function uploadToImgBB(imageFile) {
+    if (!imageFile) return null; // Si no hay imagen, retorna null
+
     const formData = new FormData();
     formData.append('image', imageFile);
 
@@ -75,23 +78,19 @@ form.addEventListener('submit', async (e) => {
 
     let photoURL = null;
 
-    if (photo) {
-        try {
+    try {
+        if (photo) {
             console.log('Subiendo la imagen a ImgBB...');
             photoURL = await uploadToImgBB(photo);
             console.log('Imagen subida. URL:', photoURL);
-        } catch (error) {
-            console.error('Error al subir la imagen:', error);
-            alert('Hubo un problema al subir la imagen.');
-            return;
         }
-    } else {
-        alert('Por favor, selecciona una imagen.');
-        return;
+    } catch (error) {
+        console.error('Error al subir la imagen:', error);
+        alert('Hubo un problema al subir la imagen. Guardaremos el comentario sin la imagen.');
     }
 
     try {
-        // Guardar los datos en Firebase Realtime Database
+        console.log('Guardando datos en Firebase...');
         const newEntryRef = push(ref(database, 'entries'));
         await set(newEntryRef, {
             name,
@@ -100,19 +99,19 @@ form.addEventListener('submit', async (e) => {
             timestamp: new Date().toISOString()
         });
 
-        alert('Datos guardados correctamente');
+        alert('Comentario guardado correctamente');
         form.reset();
         previewImage.src = '';
         previewDiv.style.display = 'none';
     } catch (error) {
         console.error('Error al guardar los datos en Firebase:', error);
-        alert('Hubo un problema al guardar los datos.');
+        alert('Hubo un problema al guardar el comentario.');
     }
 });
 
-// Cargar todos los datos desde Firebase
+// Cargar todos los comentarios desde Firebase
 onValue(ref(database, 'entries'), (snapshot) => {
-    savedDataDiv.innerHTML = ""; // Limpia los datos previos
+    savedDataDiv.innerHTML = ""; // Limpia los comentarios previos
     snapshot.forEach((childSnapshot) => {
         const data = childSnapshot.val();
         const div = document.createElement('div');
