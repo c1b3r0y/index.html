@@ -21,32 +21,152 @@ const database = getDatabase(app);
 const imgbbApiKey = 'e7186e33106d5b82ebcc518e2bf11103';
 
 // Elementos del DOM
-const form = document.getElementById('dataForm');
-const photoInput = document.getElementById('photo');
-const previewDiv = document.getElementById('preview');
-const previewImage = document.getElementById('previewImage');
-const savedDataDiv = document.getElementById('savedData');
+const charactersDiv = document.getElementById('characters');
+const createCharacterButton = document.getElementById('createCharacter');
 
-// Mostrar vista previa de la imagen seleccionada
-photoInput.addEventListener('change', () => {
-    const file = photoInput.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            previewImage.src = e.target.result; // Mostrar la imagen seleccionada
-            previewDiv.style.display = 'block'; // Mostrar la sección de vista previa
-        };
-        reader.readAsDataURL(file); // Leer el archivo como DataURL
+// Crear un nuevo personaje
+createCharacterButton.addEventListener('click', () => {
+    const characterName = prompt("Ingrese el nombre del personaje:");
+    if (characterName) {
+        const characterDiv = document.createElement('div');
+        characterDiv.style.border = '1px solid #ddd';
+        characterDiv.style.margin = '10px';
+        characterDiv.style.padding = '10px';
+
+        const title = document.createElement('h3');
+        title.textContent = `Personaje: ${characterName}`;
+        characterDiv.appendChild(title);
+
+        const baulButton = document.createElement('button');
+        baulButton.textContent = "Baúl del personaje";
+        baulButton.addEventListener('click', () => showBaul(characterName, characterDiv));
+        characterDiv.appendChild(baulButton);
+
+        charactersDiv.appendChild(characterDiv);
     } else {
-        previewImage.src = '';
-        previewDiv.style.display = 'none';
+        alert('Debe ingresar un nombre para el personaje.');
     }
 });
 
-// Subir la imagen a ImgBB
-async function uploadToImgBB(imageFile) {
-    if (!imageFile) return null; // Si no hay imagen, retorna null
+// Mostrar el baúl de un personaje
+function showBaul(characterName, parentDiv) {
+    // Crear elementos del formulario
+    const form = document.createElement('form');
+    form.id = `form_${characterName}`;
+    form.innerHTML = `
+        <h4>Agregar al Baúl de ${characterName}</h4>
+        <input type="text" id="name_${characterName}" placeholder="Nombre" required>
+        <textarea id="description_${characterName}" placeholder="Descripción" required></textarea>
+        <input type="file" id="photo_${characterName}">
+        <div id="preview_${characterName}" style="display: none;">
+            <img id="previewImage_${characterName}" style="max-width: 200px;">
+        </div>
+        <button type="submit">Guardar</button>
+        <div id="savedData_${characterName}" style="margin-top: 10px;"></div>
+    `;
 
+    // Agregar eventos al formulario
+    const photoInput = form.querySelector(`#photo_${characterName}`);
+    const previewDiv = form.querySelector(`#preview_${characterName}`);
+    const previewImage = form.querySelector(`#previewImage_${characterName}`);
+    const savedDataDiv = form.querySelector(`#savedData_${characterName}`);
+
+    // Vista previa de la imagen
+    photoInput.addEventListener('change', () => {
+        const file = photoInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewDiv.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            previewImage.src = '';
+            previewDiv.style.display = 'none';
+        }
+    });
+
+    // Guardar en Firebase
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const name = form.querySelector(`#name_${characterName}`).value.trim();
+        const description = form.querySelector(`#description_${characterName}`).value.trim();
+        const photo = photoInput.files[0];
+
+        if (!name || !description) {
+            alert('Por favor, completa todos los campos.');
+            return;
+        }
+
+        let photoURL = null;
+        try {
+            if (photo) {
+                photoURL = await uploadToImgBB(photo);
+            }
+        } catch (error) {
+            console.error('Error al subir la imagen a ImgBB:', error);
+            alert('Hubo un problema al subir la imagen. Guardaremos el comentario sin la imagen.');
+        }
+
+        try {
+            const newEntryRef = push(ref(database, `characters/${characterName}/baul`));
+            await set(newEntryRef, {
+                name,
+                description,
+                photoURL,
+                timestamp: new Date().toISOString()
+            });
+
+            alert('Elemento agregado al baúl correctamente');
+            form.reset();
+            previewImage.src = '';
+            previewDiv.style.display = 'none';
+        } catch (error) {
+            console.error('Error al guardar el elemento en Firebase:', error);
+        }
+    });
+
+    // Mostrar elementos guardados
+    onValue(
+        query(ref(database, `characters/${characterName}/baul`), orderByChild('timestamp')),
+        (snapshot) => {
+            savedDataDiv.innerHTML = "";
+            const items = [];
+            snapshot.forEach((childSnapshot) => {
+                const data = childSnapshot.val();
+                const id = childSnapshot.key;
+                items.push({ id, ...data });
+            });
+
+            items.reverse().forEach((data) => {
+                const div = document.createElement('div');
+                div.style.border = '1px solid #ddd';
+                div.style.padding = '10px';
+                div.style.marginBottom = '10px';
+
+                let photoHtml = '';
+                if (data.photoURL) {
+                    photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
+                }
+
+                div.innerHTML = `
+                    <h5>${data.name}</h5>
+                    <p>${data.description}</p>
+                    ${photoHtml}
+                `;
+
+                savedDataDiv.appendChild(div);
+            });
+        }
+    );
+
+    parentDiv.appendChild(form);
+}
+
+// Subir imagen a ImgBB
+async function uploadToImgBB(imageFile) {
     const formData = new FormData();
     formData.append('image', imageFile);
 
@@ -60,116 +180,5 @@ async function uploadToImgBB(imageFile) {
     }
 
     const data = await response.json();
-    return data.data.url; // Retorna la URL pública de la imagen
+    return data.data.url;
 }
-
-// Manejo del formulario
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const name = document.getElementById('name').value.trim();
-    const description = document.getElementById('description').value.trim();
-    const photo = photoInput.files[0]; // Obtén la imagen cargada
-
-    if (!name || !description) {
-        alert('Por favor, completa todos los campos.');
-        return;
-    }
-
-    let photoURL = null;
-
-    try {
-        if (photo) {
-            console.log('Subiendo la imagen a ImgBB...');
-            photoURL = await uploadToImgBB(photo);
-            console.log('Imagen subida a ImgBB. URL:', photoURL);
-        }
-    } catch (error) {
-        console.error('Error al subir la imagen a ImgBB:', error);
-        alert('Hubo un problema al subir la imagen. Guardaremos el comentario sin la imagen.');
-    }
-
-    try {
-        console.log('Guardando datos en Firebase...');
-        const newEntryRef = push(ref(database, 'entries'));
-        await set(newEntryRef, {
-            name,
-            description,
-            photoURL,
-            timestamp: new Date().toISOString()
-        });
-
-        alert('Comentario guardado correctamente');
-        form.reset();
-        previewImage.src = '';
-        previewDiv.style.display = 'none';
-    } catch (error) {
-        console.error('Error al guardar el comentario en Firebase:', error);
-        alert('Hubo un problema al guardar el comentario.');
-    }
-});
-
-// Cargar todos los comentarios
-onValue(
-    query(ref(database, 'entries'), orderByChild('timestamp')),
-    (snapshot) => {
-        savedDataDiv.innerHTML = ""; // Limpia los datos previos
-
-        // Almacena los datos en un array para invertir el orden
-        const comments = [];
-        snapshot.forEach((childSnapshot) => {
-            const data = childSnapshot.val();
-            const id = childSnapshot.key;
-            comments.push({ id, ...data });
-        });
-
-        // Recorre los comentarios en orden inverso
-        comments.reverse().forEach((data) => {
-            const div = document.createElement('div');
-            div.style.border = '1px solid #ddd';
-            div.style.padding = '10px';
-            div.style.marginBottom = '10px';
-
-            let photoHtml = '';
-            if (data.photoURL) {
-                photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
-            }
-
-            div.innerHTML = `
-                <h3>${data.name}</h3>
-                <p>${data.description}</p>
-                ${photoHtml}
-                <button onclick="editComment('${data.id}', '${data.name}', '${data.description}')">Editar</button>
-                <button onclick="deleteComment('${data.id}')">Eliminar</button>
-            `;
-
-            savedDataDiv.appendChild(div);
-        });
-    }
-);
-
-// Función para editar un comentario
-window.editComment = (id, currentName, currentDescription) => {
-    const newName = prompt("Editar nombre:", currentName);
-    const newDescription = prompt("Editar descripción:", currentDescription);
-
-    if (newName && newDescription) {
-        const entryRef = ref(database, `entries/${id}`);
-        update(entryRef, {
-            name: newName,
-            description: newDescription
-        })
-            .then(() => alert('Comentario actualizado correctamente'))
-            .catch((error) => console.error('Error al actualizar el comentario:', error));
-    }
-};
-
-// Función para eliminar un comentario
-window.deleteComment = (id) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este comentario?")) {
-        const entryRef = ref(database, `entries/${id}`);
-        remove(entryRef)
-            .then(() => alert('Comentario eliminado correctamente'))
-            .catch((error) => console.error('Error al eliminar el comentario:', error));
-    }
-};
