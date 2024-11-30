@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getDatabase, ref, push, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { getDatabase, ref, push, set, onValue, update, remove, query, orderByChild } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
 // Configuración de Firebase
 const firebaseConfig = {
@@ -110,32 +110,43 @@ form.addEventListener('submit', async (e) => {
 });
 
 // Cargar todos los comentarios
-onValue(ref(database, 'entries'), (snapshot) => {
-    savedDataDiv.innerHTML = ""; // Limpia los datos previos
-    snapshot.forEach((childSnapshot) => {
-        const data = childSnapshot.val();
-        const id = childSnapshot.key; // Obtiene el ID único del comentario
-        const div = document.createElement('div');
-        div.style.border = '1px solid #ddd';
-        div.style.padding = '10px';
-        div.style.marginBottom = '10px';
+onValue(
+    query(ref(database, 'entries'), orderByChild('timestamp')),
+    (snapshot) => {
+        savedDataDiv.innerHTML = ""; // Limpia los datos previos
 
-        let photoHtml = '';
-        if (data.photoURL) {
-            photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
-        }
+        // Almacena los datos en un array para invertir el orden
+        const comments = [];
+        snapshot.forEach((childSnapshot) => {
+            const data = childSnapshot.val();
+            const id = childSnapshot.key;
+            comments.push({ id, ...data });
+        });
 
-        div.innerHTML = `
-            <h3>${data.name}</h3>
-            <p>${data.description}</p>
-            ${photoHtml}
-            <button onclick="editComment('${id}', '${data.name}', '${data.description}')">Editar</button>
-            <button onclick="deleteComment('${id}')">Eliminar</button>
-        `;
+        // Recorre los comentarios en orden inverso
+        comments.reverse().forEach((data) => {
+            const div = document.createElement('div');
+            div.style.border = '1px solid #ddd';
+            div.style.padding = '10px';
+            div.style.marginBottom = '10px';
 
-        savedDataDiv.appendChild(div);
-    });
-});
+            let photoHtml = '';
+            if (data.photoURL) {
+                photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
+            }
+
+            div.innerHTML = `
+                <h3>${data.name}</h3>
+                <p>${data.description}</p>
+                ${photoHtml}
+                <button onclick="editComment('${data.id}', '${data.name}', '${data.description}')">Editar</button>
+                <button onclick="deleteComment('${data.id}')">Eliminar</button>
+            `;
+
+            savedDataDiv.appendChild(div);
+        });
+    }
+);
 
 // Función para editar un comentario
 window.editComment = (id, currentName, currentDescription) => {
