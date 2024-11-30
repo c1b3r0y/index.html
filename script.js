@@ -1,6 +1,6 @@
 // Importa las funciones necesarias de Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getDatabase, ref, push, set, onValue, update, remove, query, orderByChild } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { getDatabase, ref, push, set, onValue, query, orderByChild } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
 // Configuración de Firebase (reemplaza con tus propias credenciales)
 const firebaseConfig = {
@@ -31,34 +31,43 @@ document.addEventListener('DOMContentLoaded', () => {
         const characterName = prompt("Ingrese el nombre del personaje:");
         if (characterName) {
             // Verifica si el personaje ya existe
-            if (document.getElementById(`character_${characterName}`)) {
-                alert('Este personaje ya existe.');
-                return;
-            }
-
-            const characterDiv = document.createElement('div');
-            characterDiv.id = `character_${characterName}`;
-            characterDiv.classList.add('character');
-
-            const title = document.createElement('h3');
-            title.textContent = `Personaje: ${characterName}`;
-            characterDiv.appendChild(title);
-
-            const baulButton = document.createElement('button');
-            baulButton.textContent = "Baúl del personaje";
-            baulButton.addEventListener('click', () => showBaul(characterName, characterDiv));
-            characterDiv.appendChild(baulButton);
-
-            // Contenedor para el baúl
-            const baulContainer = document.createElement('div');
-            baulContainer.id = `baul_${characterName}`;
-            characterDiv.appendChild(baulContainer);
-
-            charactersDiv.appendChild(characterDiv);
+            const characterRef = ref(database, `characters/${characterName}`);
+            set(characterRef, { name: characterName }) // Guarda el personaje en Firebase
+                .then(() => {
+                    alert(`Personaje "${characterName}" creado correctamente.`);
+                    addCharacterToDOM(characterName);
+                })
+                .catch((error) => {
+                    console.error('Error al crear el personaje en Firebase:', error);
+                    alert('Hubo un problema al crear el personaje.');
+                });
         } else {
             alert('Debe ingresar un nombre para el personaje.');
         }
     });
+
+    // Agregar un personaje al DOM
+    function addCharacterToDOM(characterName) {
+        const characterDiv = document.createElement('div');
+        characterDiv.id = `character_${characterName}`;
+        characterDiv.classList.add('character');
+
+        const title = document.createElement('h3');
+        title.textContent = `Personaje: ${characterName}`;
+        characterDiv.appendChild(title);
+
+        const baulButton = document.createElement('button');
+        baulButton.textContent = "Baúl del personaje";
+        baulButton.addEventListener('click', () => showBaul(characterName, characterDiv));
+        characterDiv.appendChild(baulButton);
+
+        // Contenedor para el baúl
+        const baulContainer = document.createElement('div');
+        baulContainer.id = `baul_${characterName}`;
+        characterDiv.appendChild(baulContainer);
+
+        charactersDiv.appendChild(characterDiv);
+    }
 
     // Mostrar el baúl de un personaje
     function showBaul(characterName, parentDiv) {
@@ -178,8 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <h5>${data.name}</h5>
                         <p>${data.description}</p>
                         ${photoHtml}
-                        <button onclick="editItem('${characterName}', '${data.id}', '${data.name}', '${data.description}')">Editar</button>
-                        <button onclick="deleteItem('${characterName}', '${data.id}')">Eliminar</button>
                     `;
 
                     savedDataDiv.appendChild(div);
@@ -207,30 +214,4 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await response.json();
         return data.data.url;
     }
-
-    // Función para editar un elemento
-    window.editItem = (characterName, id, currentName, currentDescription) => {
-        const newName = prompt("Editar nombre:", currentName);
-        const newDescription = prompt("Editar descripción:", currentDescription);
-
-        if (newName && newDescription) {
-            const entryRef = ref(database, `characters/${characterName}/baul/${id}`);
-            update(entryRef, {
-                name: newName,
-                description: newDescription
-            })
-                .then(() => alert('Elemento actualizado correctamente'))
-                .catch((error) => console.error('Error al actualizar el elemento:', error));
-        }
-    };
-
-    // Función para eliminar un elemento
-    window.deleteItem = (characterName, id) => {
-        if (confirm("¿Estás seguro de que deseas eliminar este elemento?")) {
-            const entryRef = ref(database, `characters/${characterName}/baul/${id}`);
-            remove(entryRef)
-                .then(() => alert('Elemento eliminado correctamente'))
-                .catch((error) => console.error('Error al eliminar el elemento:', error));
-        }
-    };
 });
