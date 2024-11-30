@@ -50,7 +50,7 @@ async function uploadToImgBB(imageFile) {
     const formData = new FormData();
     formData.append('image', imageFile);
 
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbApiKey}`, {
+    const response = await fetch(https://api.imgbb.com/1/upload?key=${imgbbApiKey}, {
         method: 'POST',
         body: formData,
     });
@@ -122,16 +122,16 @@ onValue(ref(database, 'entries'), (snapshot) => {
 
         let photoHtml = '';
         if (data.photoURL) {
-            photoHtml = `<img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">`;
+            photoHtml = <img src="${data.photoURL}" alt="Imagen de ${data.name}" style="max-width: 200px; margin-top: 10px;">;
         }
 
-        div.innerHTML = `
+        div.innerHTML = 
             <h3>${data.name}</h3>
             <p>${data.description}</p>
             ${photoHtml}
             <button onclick="editComment('${id}', '${data.name}', '${data.description}')">Editar</button>
             <button onclick="deleteComment('${id}')">Eliminar</button>
-        `;
+        ;
 
         savedDataDiv.appendChild(div);
     });
@@ -143,7 +143,7 @@ window.editComment = (id, currentName, currentDescription) => {
     const newDescription = prompt("Editar descripción:", currentDescription);
 
     if (newName && newDescription) {
-        const entryRef = ref(database, `entries/${id}`);
+        const entryRef = ref(database, entries/${id});
         update(entryRef, {
             name: newName,
             description: newDescription
@@ -156,7 +156,7 @@ window.editComment = (id, currentName, currentDescription) => {
 // Función para eliminar un comentario
 window.deleteComment = (id) => {
     if (confirm("¿Estás seguro de que deseas eliminar este comentario?")) {
-        const entryRef = ref(database, `entries/${id}`);
+        const entryRef = ref(database, entries/${id});
         remove(entryRef)
             .then(() => alert('Comentario eliminado correctamente'))
             .catch((error) => console.error('Error al eliminar el comentario:', error));
